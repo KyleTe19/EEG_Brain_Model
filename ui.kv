@@ -1,0 +1,113 @@
+ScreenManager:
+    MainScreen:
+
+<MainScreen>:
+    name: "main"
+
+    MDScreen:
+        md_bg_color: 21/255, 21/255, 21/255, 1
+
+        MDBoxLayout:
+            orientation: 'vertical'
+
+            MDLabel:
+                text: "Montage Selection"
+                font_style: "H4"
+                halign: "center"
+                theme_text_color: "Custom"
+                text_color: 243/255, 243/255, 243/255, 1
+                size_hint_y: None
+                height: dp(100)
+                bold: True
+                
+            ScrollView:
+
+                MDGridLayout:
+                    size_hint_y: dp(1.3)
+                    cols: 1
+                    padding: dp(20)
+                    spacing: dp(15)
+
+                    ElementCard:
+                        text: "Bipolar"
+                        image_source: "images/bipolar.png"
+                        on_release: app.on_toggle_press(self)
+
+                    ElementCard:
+                        text: "Transverse"
+                        image_source: "images/transverse.png"
+                        on_release: app.on_toggle_press(self)
+
+                    ElementCard:
+                        text: "Sphenoidal"
+                        image_source: "images/sphenoidal.png"
+                        on_release: app.on_toggle_press(self)
+
+                    ElementCard:
+                        text: "Hatband"
+                        image_source: "images/hatband.png"
+                        on_release: app.on_toggle_press(self)
+
+                    ElementCard:
+                        text: "Brain Death"
+                        image_source: "images/tbd.png"
+                        on_release: app.on_toggle_press(self)
+
+                    ElementCard:
+                        text: "Infant"
+                        image_source: "images/infant.jpg"
+                        on_release: app.on_toggle_press(self)
+
+                    ElementCard:
+                        text: "Antero-Posterior"
+                        image_source: "images/tbd.png"
+                        on_release: app.on_toggle_press(self)
+
+                    ElementCard:
+                        text: "EEG Electrodes"
+                        image_source: "images/tbd.png"
+                        on_release: app.on_toggle_press(self)
+
+                    ElementCard:
+                        text: "TBD"
+                        image_source: "images/tbd.png"
+                        on_release: app.on_toggle_press(self)
+
+<ElementCard@MDCard>:
+    md_bg_color: 46/255, 46/255, 46/255, 1  
+    padding: dp(15)
+    spacing: dp(10)
+    radius: dp(25)
+    ripple_behavior: True
+    text: ""
+    image_source: ""  
+    pos_hint: {"center_x": 0.5}
+    size_hint_x: 1
+    size_hint_y: None
+    height: dp(125)
+
+    MDBoxLayout:
+        orientation: 'horizontal'
+        adaptive_height: True
+        spacing: dp(15)
+
+        MDLabel:
+            id: label
+            text: root.text
+            theme_text_color: "Custom"
+            text_color: 243/255, 243/255, 243/255, 1 
+            font_style: "H6"
+            halign: "left"
+            valign: "center"
+            size_hint_x: 0.8
+            height: self.texture_size[1]  
+
+        Image:
+            source: root.image_source
+            size_hint_x: None
+            size_hint_y: None
+            width: dp(95)
+            height: dp(95)
+            allow_stretch: True
+            keep_ratio: True
+            pos_hint: {"center_y": 0.5}

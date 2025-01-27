@@ -1,4 +1,5 @@
 from kivymd.app import MDApp
+from kivy.lang import Builder 
 from kivymd.uix.button import MDFloatingActionButton
 from kivymd.uix.screen import Screen
 from kivymd.uix.label import MDLabel
@@ -9,56 +10,47 @@ from kivy.clock import Clock
 import asyncio
 from threading import Thread
 from functools import partial
+from kivy.uix.button import Button
 
 BLE_ADDRESS = "70:b8:f6:67:64:a6"
 CHAR_UUID = "9b7a6e35-cb8d-473b-9346-15507d362aa3"
 
+class MainScreen(Screen):
+    pass
 
 class DemoApp(MDApp):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self.loop = None  # Will hold the asyncio event loop
         self.ble_client = None  # BLE client instance
+        self.active_button = None
 
     def build(self):
-        # Create screen object
-        screen = Screen()
+        # Load the KV file
+        return Builder.load_file("ui.kv")
+    
+    def on_toggle_press(self, button):
+        """Toggle button state and update colors"""
+        label = button.ids.label 
 
-        # Create main layout for buttons and labels
-        grid_layout = GridLayout(cols=2, spacing=20, padding=20)
+        if self.active_button == button:
+            # if the same button is pressed again, untoggle it
+            button.md_bg_color = (46/255, 46/255, 46/255, 1)  # reset to default color
+            label.theme_text_color = "Custom"
+            label.text_color = (243/255, 243/255, 243/255, 1) # reset text color
+            self.active_button = None
+            print(f"'{label.text}' toggled OFF")
+        else:
+            if self.active_button:
+                self.active_button.md_bg_color = (46/255, 46/255, 46/255, 1)  # reset previous button
+                self.active_button.ids.label.theme_text_color = "Custom"
+                self.active_button.ids.label.text_color = (243/255, 243/255, 243/255, 1)  # reset text color to white
 
-        # Helper function to create button with label
-        def create_button_with_label(icon, text, command):
-            layout = BoxLayout(orientation="vertical", size_hint=(None, None), size=("100dp", "120dp"))
-            button = MDFloatingActionButton(icon=icon, size_hint=(None, None), size=("56dp", "56dp"))
-            label = MDLabel(
-                text=text,
-                halign="center",
-                theme_text_color="Secondary",
-                size_hint=(1, None),
-                height="20dp",
-            )
-            # Use functools.partial to pass the specific command
-            button.bind(on_release=partial(self.on_button_press, command))
-            layout.add_widget(button)
-            layout.add_widget(label)
-            return layout
-
-        # Add buttons with corresponding labels and commands
-        grid_layout.add_widget(create_button_with_label("android", "Antero Posterior", "command1"))
-        grid_layout.add_widget(create_button_with_label("android", "Bipolar", "green"))
-        grid_layout.add_widget(create_button_with_label("android", "Transverse", "command3"))
-        grid_layout.add_widget(create_button_with_label("android", "Infant", "command4"))
-        grid_layout.add_widget(create_button_with_label("android", "Sphenoidal", "command5"))
-        grid_layout.add_widget(create_button_with_label("android", "Brain Death", "command6"))
-        grid_layout.add_widget(create_button_with_label("android", "Heat Band", "command7"))
-        grid_layout.add_widget(create_button_with_label("android", "EEG Electrodes", "command8"))
-        grid_layout.add_widget(create_button_with_label("android", "Stop Button", "commandStop"))
-
-        # Add layout to the screen
-        screen.add_widget(grid_layout)
-
-        return screen
+            button.md_bg_color = (243/255, 243/255, 243/255, 1)  # white when toggled ON  
+            label.theme_text_color = "Custom"
+            label.text_color = (46/255, 46/255, 46/255, 1)  # black text when toggled ON
+            self.active_button = button
+            print(f"'{label.text} toggled ON")
 
     async def connect_to_device(self):
         """ Establish a persistent BLE connection. """
@@ -120,6 +112,6 @@ class DemoApp(MDApp):
         if self.loop:  # Ensure the loop is initialized
             asyncio.run_coroutine_threadsafe(self.disconnect_from_device(), self.loop)
 
-
-# Run application
-DemoApp().run()
+if __name__ == '__main__':
+    # Run application
+    DemoApp().run()
