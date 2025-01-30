@@ -45,8 +45,8 @@ class DemoApp(MDApp):
             return layout
 
         # Add buttons with corresponding labels and commands
-        grid_layout.add_widget(create_button_with_label("android", "Antero Posterior", "command1"))
-        grid_layout.add_widget(create_button_with_label("android", "Bipolar", "green"))
+        grid_layout.add_widget(create_button_with_label("android", "Antero Posterior", "255,0,0"))
+        grid_layout.add_widget(create_button_with_label("android", "Bipolar", "\x01"))
         grid_layout.add_widget(create_button_with_label("android", "Transverse", "command3"))
         grid_layout.add_widget(create_button_with_label("android", "Infant", "command4"))
         grid_layout.add_widget(create_button_with_label("android", "Sphenoidal", "command5"))
@@ -82,16 +82,24 @@ class DemoApp(MDApp):
         """ Send a command to the ESP32 over BLE. """
         if self.ble_client and self.ble_client.is_connected:
             try:
-                await self.ble_client.write_gatt_char(CHAR_UUID, command.encode('utf-8'))
+                test_command = command.encode('utf-8')
+                print(f"Here is the encoded teste command: {test_command}")
+                await self.ble_client.write_gatt_char(CHAR_UUID, command.encode('utf-8'), response=True)
                 print(f"Sent command: {command}")
             except Exception as e:
                 print(f"An error occurred: {e}")
         else:
             print("Not connected to ESP32. Cannot send command.")
 
+
     def on_button_press(self, command, *args):
         """ Trigger send_command when a button is pressed. """
         print(f"Button pressed, sending command: {command}")
+
+        # Ensure command is a string
+        if not isinstance(command, str):
+            print(f"Error: Command is not a string: {command}")
+            return
 
         # Schedule the async function in the running event loop
         if self.loop:
@@ -123,3 +131,4 @@ class DemoApp(MDApp):
 
 # Run application
 DemoApp().run()
+
