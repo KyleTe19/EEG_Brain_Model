@@ -1,5 +1,4 @@
 from kivymd.app import MDApp
-from kivy.lang import Builder 
 from kivymd.uix.button import MDFloatingActionButton
 from kivymd.uix.screen import Screen
 from kivymd.uix.label import MDLabel
@@ -10,47 +9,56 @@ from kivy.clock import Clock
 import asyncio
 from threading import Thread
 from functools import partial
-from kivy.uix.button import Button
 
 BLE_ADDRESS = "70:b8:f6:67:64:a6"
 CHAR_UUID = "9b7a6e35-cb8d-473b-9346-15507d362aa3"
 
-class MainScreen(Screen):
-    pass
 
 class DemoApp(MDApp):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self.loop = None  # Will hold the asyncio event loop
         self.ble_client = None  # BLE client instance
-        self.active_button = None
 
     def build(self):
-        # Load the KV file
-        return Builder.load_file("ui.kv")
+        # Create screen object
+        screen = Screen()
+
+        # Create main layout for buttons and labels
+        grid_layout = GridLayout(cols=2, spacing=20, padding=20)
+
+        # Helper function to create button with label
+        def create_button_with_label(icon, text, command):
+            layout = BoxLayout(orientation="vertical", size_hint=(None, None), size=("100dp", "120dp"))
+            button = MDFloatingActionButton(icon=icon, size_hint=(None, None), size=("56dp", "56dp"))
+            label = MDLabel(
+                text=text,
+                halign="center",
+                theme_text_color="Secondary",
+                size_hint=(1, None),
+                height="20dp",
+            )
+            # Use functools.partial to pass the specific command
+            button.bind(on_release=lambda btn, cmd=command: self.on_button_press(cmd))
+            layout.add_widget(button)
+            layout.add_widget(label)
+            return layout
     
-    def on_toggle_press(self, button):
-        """Toggle button state and update colors"""
-        label = button.ids.label 
+        # Add buttons with corresponding labels and commands
+        grid_layout.add_widget(create_button_with_label("android", "Antero Posterior", "255,0,0"))
+        grid_layout.add_widget(create_button_with_label("android", "Bipolar", "0, 255, 0"))
+        grid_layout.add_widget(create_button_with_label("android", "Transverse", "0, 0, 255"))
+        grid_layout.add_widget(create_button_with_label("android", "Infant", "255, 255, 255"))
+        grid_layout.add_widget(create_button_with_label("android", "Sphenoidal", "255,0,255"))
+        grid_layout.add_widget(create_button_with_label("android", "Brain Death", "0, 255, 255"))
+        grid_layout.add_widget(create_button_with_label("android", "Heat Band", "255, 255, 0"))
+        grid_layout.add_widget(create_button_with_label("android", "EEG Electrodes", "225, 245, 2"))
+        grid_layout.add_widget(create_button_with_label("android", "Stop Button", "0, 0, 0"))
 
-        if self.active_button == button:
-            # if the same button is pressed again, untoggle it
-            button.md_bg_color = (46/255, 46/255, 46/255, 1)  # reset to default color
-            label.theme_text_color = "Custom"
-            label.text_color = (243/255, 243/255, 243/255, 1) # reset text color
-            self.active_button = None
-            print(f"'{label.text}' toggled OFF")
-        else:
-            if self.active_button:
-                self.active_button.md_bg_color = (46/255, 46/255, 46/255, 1)  # reset previous button
-                self.active_button.ids.label.theme_text_color = "Custom"
-                self.active_button.ids.label.text_color = (243/255, 243/255, 243/255, 1)  # reset text color to white
+        # Add layout to the screen
+        screen.add_widget(grid_layout)
 
-            button.md_bg_color = (243/255, 243/255, 243/255, 1)  # white when toggled ON  
-            label.theme_text_color = "Custom"
-            label.text_color = (46/255, 46/255, 46/255, 1)  # black text when toggled ON
-            self.active_button = button
-            print(f"'{label.text} toggled ON")
+        return screen
 
     async def connect_to_device(self):
         """ Establish a persistent BLE connection. """
@@ -71,19 +79,34 @@ class DemoApp(MDApp):
             print(f"Disconnected from {BLE_ADDRESS}")
 
     async def send_command(self, command):
-        """ Send a command to the ESP32 over BLE. """
+        """ Send properly formatted command to ESP32 over BLE. """
         if self.ble_client and self.ble_client.is_connected:
             try:
-                await self.ble_client.write_gatt_char(CHAR_UUID, command.encode('utf-8'))
-                print(f"Sent command: {command}")
+                # Handle different command formats
+                if isinstance(command, str):
+                    if command == "\x01":
+                        # Send single byte command
+                        formatted_command = bytes([1])
+                    else:
+                        # Send RGB command
+                        formatted_command = command.strip().encode()
+                    
+                    print(f"Sending command: {formatted_command}")
+                    await self.ble_client.write_gatt_char(CHAR_UUID, formatted_command)
+                    print(f"Command sent successfully")
             except Exception as e:
-                print(f"An error occurred: {e}")
+                print(f"Error sending command: {e}")
         else:
             print("Not connected to ESP32. Cannot send command.")
 
     def on_button_press(self, command, *args):
         """ Trigger send_command when a button is pressed. """
         print(f"Button pressed, sending command: {command}")
+
+        # Ensure command is a string
+        if not isinstance(command, str):
+            print(f"Error: Command is not a string: {command}")
+            return
 
         # Schedule the async function in the running event loop
         if self.loop:
@@ -112,6 +135,6 @@ class DemoApp(MDApp):
         if self.loop:  # Ensure the loop is initialized
             asyncio.run_coroutine_threadsafe(self.disconnect_from_device(), self.loop)
 
-if __name__ == '__main__':
-    # Run application
-    DemoApp().run()
+
+# Run application
+DemoApp().run()
