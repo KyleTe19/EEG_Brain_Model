@@ -5,6 +5,25 @@ from machine import Pin
 import neopixel
 import time
 
+
+ButtonPin = Pin(36, Pin.IN, Pin.PULL_DOWN)
+PowerRelayControl = Pin(12, Pin.OUT)
+
+
+# Lamda function that runs when the interrupt listener is triggered
+def SwitchHandler(pin):
+    if pin.value() == 1:
+        PowerRelayControl.on()
+        print(f"Button Value = {pin.value()}")
+        print(f"Power Relay Value = {PowerRelayControl.value()}")
+    else:
+        ble_peripheral.set_color(0,0,0)
+        time.sleep(5)
+        PowerRelayControl.off()
+        print(f"Button Value On Depress = {pin.value()}")
+        print(f"Power Relay Value On Depress = {PowerRelayControl.value()}")
+
+
 def advertising_payload(name=None, services=None):
     payload = bytearray()
     if name:
@@ -36,15 +55,15 @@ class BLEPeripheral:
         # Define UUIDs
         service_uuid = UUID("3322271e-756a-443d-8a9d-2f90c7a73bf5")
         char_uuid = UUID("9b7a6e35-cb8d-473b-9346-15507d362aa3")
-        
+
         # Define characteristic
         char = (char_uuid, FLAG_WRITE | FLAG_READ)
         services = [(service_uuid, [char])]
-        
+
         # Register services
         handles = self.ble.gatts_register_services(services)
         print(f"Handles received: {handles}")  # Debug print
-        
+
         # Extract the integer handle values from the nested tuples
         if handles and len(handles) > 0 and len(handles[0]) > 0:
             self.service_handle = handles[0][0]  # Extract the integer
@@ -58,12 +77,12 @@ class BLEPeripheral:
         if event == 1:  # Connect
             print("Device connected")
             self.connected = True
-            
+
         elif event == 2:  # Disconnect
             print("Device disconnected")
             self.connected = False
             self.start_advertising()
-            
+
         elif event == 3:  # Write
             handle, value = data
             print(f"Write event - handle: {handle}, value: {value}")
@@ -85,7 +104,7 @@ class BLEPeripheral:
                             if byte_value == 1:
                                 #self.set_color(255, 0, 0)
                                 print(f"String Decoding Failed")
-                                
+
                     except UnicodeError:
                         # Handle as raw bytes if decode fails
                         byte_value = buffer[0]
@@ -120,3 +139,9 @@ class BLEPeripheral:
 
 # Initialize the peripheral
 ble_peripheral = BLEPeripheral(10, 26)
+
+# Interrupt Listener for the switch
+ButtonPin.irq(trigger=Pin.IRQ_RISING | Pin.IRQ_FALLING, handler=SwitchHandler)
+
+
+
