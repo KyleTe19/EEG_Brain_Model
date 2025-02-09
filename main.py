@@ -10,7 +10,7 @@ import asyncio
 from threading import Thread
 from functools import partial
 
-BLE_ADDRESS = "70:b8:f6:78:85:e2"
+BLE_ADDRESS = "70:b8:f6:67:64:a6"
 CHAR_UUID = "9b7a6e35-cb8d-473b-9346-15507d362aa3"
 
 
