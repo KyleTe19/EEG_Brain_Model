@@ -4,7 +4,6 @@ from kivy.clock import Clock
 import asyncio
 from threading import Thread
 from bleak import BleakClient
-from bleak import BleakScanner
 from kivymd.uix.screen import Screen
 from threading import Thread
 
@@ -119,7 +118,7 @@ class DemoApp(MDApp):
         def connect_and_scan(dt):
             if self.loop:
                 asyncio.run_coroutine_threadsafe(self.connect_to_device(), self.loop)
-        Clock.schedule_once(connect_and_scan, 0.7)
+        Clock.schedule_once(connect_and_scan, 1)
 
     # Disconnect from the BLE device when the app stops
     def on_stop(self):
