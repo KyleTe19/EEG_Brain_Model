@@ -5,7 +5,8 @@ import asyncio
 from threading import Thread
 from bleak import BleakClient
 from kivymd.uix.screen import Screen
-from threading import Thread
+from kivymd.uix.menu import MDDropdownMenu
+from kivymd.uix.button import MDIconButton
 
 BLE_ADDRESS = "70:b8:f6:67:64:a6"
 CHAR_UUID = "9b7a6e35-cb8d-473b-9346-15507d362aa3"
@@ -19,17 +20,19 @@ class DemoApp(MDApp):
         self.loop = None              # asyncio event loop
         self.ble_client = None        # BLE client instance
         self.current_element = None   # Track the currently active ElementCard
+        self.menu = None              # Dropdown menu instance
+        self.color_map = {}           # Stores selected colors for each button
 
         # Map each card’s text to its corresponding command
         self.command_map = {
-            "Antero-Posterior": "antero-posterior",
+            "Antero-Posterior": "anteroposterior",
             "Bipolar": "bipolar",
             "Transverse": "transverse",
             "Infant": "infant",
             "Sphenoidal": "sphenoidal",
-            "Brain Death": "brain death",
+            "Brain Death": "brain_death",
             "Hatband": "hatband",
-            "EEG Electrodes": "eeg electrodes",
+            "EEG Electrodes": "electrodes",
         }
 
     # KV file for the UI
@@ -58,27 +61,30 @@ class DemoApp(MDApp):
     async def send_command(self, command):
         if self.ble_client and self.ble_client.is_connected:
             try:
-                if isinstance(command, str):
-                    # handle different command formats
-                    if command == "\x01":
-                        formatted_command = bytes([1])
-                    else:
-                        formatted_command = command.strip().encode()
-                    print(f"Sending command: {formatted_command}")
-                    await self.ble_client.write_gatt_char(CHAR_UUID, formatted_command)
-                    print("Command sent successfully")
+                formatted_command = command.strip().encode()
+                print(f"Sending command: {formatted_command}")
+                await self.ble_client.write_gatt_char(CHAR_UUID, formatted_command)
+                print("Command sent successfully")
             except Exception as e:
                 print(f"Error sending command: {e}")
         else:
             print("Not connected to ESP32. Cannot send command")
 
     # Trigger send_command when button is pressed
-    def on_button_press(self, command, *args):
+    def on_button_press(self, command, element_card):
         if not isinstance(command, str):
             print(f"Error: Command is not a string: {command}")
             return
+        
+        # Get the selected color for this button (default to "blue" if none chosen)
+        selected_color = self.color_map.get(element_card.text, "blue")
+
+        # Send command and color together
+        full_command = f"{command} {selected_color}"
+        print(f"Final command to send: {full_command}")
+
         if self.loop:
-            asyncio.run_coroutine_threadsafe(self.send_command(command), self.loop)
+            asyncio.run_coroutine_threadsafe(self.send_command(full_command), self.loop)
 
    # Toggle card and send command when ElementCard is pressed 
     def on_toggle_press(self, element_card):
@@ -94,7 +100,7 @@ class DemoApp(MDApp):
             element_card.active = False
             if self.current_element == element_card:
                 self.current_element = None
-            self.on_button_press("off")
+            self.on_button_press("off", element_card)
         else:
             # Toggled on
             print(f"ON: {card_text}\nCommand: {command}")
@@ -102,7 +108,33 @@ class DemoApp(MDApp):
                 self.current_element.active = False
             element_card.active = True
             self.current_element = element_card
-            self.on_button_press(command)
+            self.on_button_press(command, element_card)
+
+    # Show color selection dropdown menu
+    def show_color_menu(self, instance, card):
+        colors = ["red", "blue", "green", "yellow", "white", "purple", "orange"]
+
+        menu_items = [
+            {
+                "viewclass": "OneLineListItem",
+                "text": color,
+                "on_release": lambda x=color: self.assign_color_to_card(card, x),
+            }
+            for color in colors
+        ]
+
+        self.menu = MDDropdownMenu(
+            caller=instance,
+            items=menu_items,
+            width_mult=4,
+        )
+        self.menu.open()
+
+    # Assign selected color to the button (doesn't change UI, just stores the color)
+    def assign_color_to_card(self, card, color):
+        self.color_map[card.text] = color  # Store the selected color
+        print(f"Assigned color '{color}' to {card.text}")  # Debugging output
+        self.menu.dismiss()
 
     # Start the asyncio event loop in a separate thread
     def start_event_loop(self):

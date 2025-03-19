@@ -75,9 +75,7 @@ ScreenManager:
                         on_release: app.on_toggle_press(self)
 
 <ElementCard@MDCard>:
-    # Add an "active" property to track toggle state.
     active: False
-    # When active, show a white background; otherwise, a dark gray.
     md_bg_color: (1, 1, 1, 1) if self.active else (46/255, 46/255, 46/255, 1)
     padding: dp(15)
     spacing: dp(10)
@@ -99,12 +97,11 @@ ScreenManager:
             id: label
             text: root.text
             theme_text_color: "Custom"
-            # When active, use black text; otherwise, a light gray.
             text_color: (0, 0, 0, 1) if root.active else (243/255, 243/255, 243/255, 1)
             font_style: "H6"
             halign: "left"
             valign: "center"
-            size_hint_x: 0.8
+            size_hint_x: 0.6
             height: self.texture_size[1]
 
         Image:
@@ -116,3 +113,7 @@ ScreenManager:
             allow_stretch: True
             keep_ratio: True
             pos_hint: {"center_y": 0.5}
+
+        MDIconButton:
+            icon: "palette"
+            on_release: app.show_color_menu(self, root)
