@@ -176,7 +176,7 @@ class DemoApp(MDApp):
                 return
 
             device = adapter.getRemoteDevice(BLE_ADDRESS)
-            self.gatt_callback = MyGattCallback()  # This is your Java .jar class
+            self.gatt_callback = MyGattCallback()  # This is the Java .jar class
             self.ble_client = device.connectGatt(
                 self.get_context(),
                 False,
