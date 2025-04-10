@@ -105,6 +105,7 @@ class DemoApp(MDApp):
         ]
         return all(check_permission(p) for p in required)
 
+    # update -- checks connectivity status 
     def check_connection(self, dt):
         try:
             context = self.get_context()
@@ -129,6 +130,7 @@ class DemoApp(MDApp):
         except Exception as e:
             print(f"Polling failed: {e}")
 
+    # update -- checks status - looking for service UUID
     def poll_for_service(self, dt):
         try:
             service = self.ble_client.getService(UUID.fromString(SERVICE_UUID))
@@ -192,6 +194,7 @@ class DemoApp(MDApp):
             print(f"Connection failed: {e}")
             screen.status_text = "Connection Failed"
 
+    # update -- checks for UUID characteristic -- mostly here for debugging - i don't think this is being called amymore
     def get_characteristic(self, dt):
         try:
             service = self.ble_client.getService(UUID.fromString(SERVICE_UUID))
@@ -212,6 +215,7 @@ class DemoApp(MDApp):
             self.get_main_screen().status_text = "Service Discovery Failed"
 
 
+    # update -- i don't think this is being called either 
     def on_connection_state_change(self, gatt, status, new_state):
         screen = self.get_main_screen()
         if new_state == 2:
