@@ -3,12 +3,29 @@ ScreenManager:
 
 <MainScreen>:
     name: "main"
+    is_connected: False
+    status_text: "Not Connected"
 
     MDScreen:
         md_bg_color: 21/255, 21/255, 21/255, 1
 
         MDBoxLayout:
             orientation: 'vertical'
+
+            # Connection Status Bar (Added this)
+            MDBoxLayout:
+                size_hint_y: None
+                height: dp(40)
+                md_bg_color: (0, 0.7, 0, 1) if root.is_connected else (0.9, 0, 0, 1)
+                padding: dp(10)
+
+                MDLabel:
+                    text: root.status_text
+                    theme_text_color: "Custom"
+                    text_color: 1, 1, 1, 1
+                    bold: True
+                    halign: "center"
+                    valign: "center"
 
             MDLabel:
                 text: "Montage Selection"
@@ -22,7 +39,6 @@ ScreenManager:
 
             ScrollView:
                 MDGridLayout:
-                    # Set size_hint_y and height so that the grid scrolls properly.
                     size_hint_y: None
                     height: self.minimum_height
                     cols: 1
@@ -40,15 +56,16 @@ ScreenManager:
                         on_release: app.on_toggle_press(self)
 
                     ElementCard:
+                        text: "Hatband"
+                        image_source: "images/hatband.png"
+                        on_release: app.on_toggle_press(self)
+                    
+                    ElementCard:
                         text: "Sphenoidal"
                         image_source: "images/sphenoidal.png"
                         on_release: app.on_toggle_press(self)
 
-                    ElementCard:
-                        text: "Hatband"
-                        image_source: "images/hatband.png"
-                        on_release: app.on_toggle_press(self)
-
+                    
                     ElementCard:
                         text: "Brain Death"
                         image_source: "images/tbd.png"
@@ -108,12 +125,15 @@ ScreenManager:
             source: root.image_source
             size_hint_x: None
             size_hint_y: None
-            width: dp(95)
-            height: dp(95)
+            width: dp(97)
+            height: dp(97)
             allow_stretch: True
             keep_ratio: True
             pos_hint: {"center_y": 0.5}
 
         MDIconButton:
             icon: "palette"
+            theme_text_color: "Custom"
+            text_color: 1, 1, 1, 1  # RGBA format for white (1,1,1,1)
             on_release: app.show_color_menu(self, root)
+            

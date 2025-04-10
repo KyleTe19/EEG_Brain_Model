@@ -1,29 +1,47 @@
+# works on tablet. yay
+
 from kivymd.app import MDApp
 from kivy.lang import Builder
 from kivy.clock import Clock
-import asyncio
-from threading import Thread
-from bleak import BleakClient
 from kivymd.uix.screen import Screen
 from kivymd.uix.menu import MDDropdownMenu
-from kivymd.uix.button import MDIconButton
+from kivy.properties import BooleanProperty, StringProperty
+from android.permissions import request_permissions, Permission, check_permission
+from jnius import autoclass, cast
 
-BLE_ADDRESS = "70:b8:f6:67:64:a6"
+# BLE Constants
+# BLE_ADDRESS = "70:B8:F6:78:85:E2" # OLD 
+BLE_ADDRESS = "70:B8:F6:67:64:A6" # CURRENT
 CHAR_UUID = "9b7a6e35-cb8d-473b-9346-15507d362aa3"
+SERVICE_UUID = "3322271E-756A-443D-8A9D-2F90C7A73BF5"
+
+# Java Classes
+BluetoothAdapter = autoclass('android.bluetooth.BluetoothAdapter')
+BluetoothDevice = autoclass('android.bluetooth.BluetoothDevice')
+BluetoothGatt = autoclass('android.bluetooth.BluetoothGatt')
+Context = autoclass('android.content.Context')
+UUID = autoclass('java.util.UUID')
+LocationManager = autoclass('android.location.LocationManager')
+PythonActivity = autoclass('org.kivy.android.PythonActivity')
+MyGattCallback = autoclass('org.montage.ble.MyGattCallback')
+BluetoothManager = autoclass('android.bluetooth.BluetoothManager')
+BluetoothProfile = autoclass('android.bluetooth.BluetoothProfile')
+
+
 
 class MainScreen(Screen):
-    pass
+    is_connected = BooleanProperty(False)
+    status_text = StringProperty("Disconnected")
 
 class DemoApp(MDApp):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.loop = None              # asyncio event loop
-        self.ble_client = None        # BLE client instance
-        self.current_element = None   # Track the currently active ElementCard
-        self.menu = None              # Dropdown menu instance
-        self.color_map = {}           # Stores selected colors for each button
+        self.ble_client = None
+        self.characteristic = None
+        self.current_element = None
+        self.menu = None
+        self.color_map = {}
 
-        # Map each card’s text to its corresponding command
         self.command_map = {
             "Antero-Posterior": "anteroposterior",
             "Bipolar": "bipolar",
@@ -33,74 +51,206 @@ class DemoApp(MDApp):
             "Brain Death": "brain_death",
             "Hatband": "hatband",
             "EEG Electrodes": "electrodes",
+            "TBD": "custom"
         }
 
-    # KV file for the UI
     def build(self):
+        def on_permissions_callback(permissions, grants):
+
+            print("Permissions callback executed")
+            for i, grant in enumerate(grants):
+                if not grant:
+                    print(f"Permission denied: {permissions[i]}")
+
+            if all(grants):
+                print("All permissions granted")
+                if self.is_location_enabled():
+                    Clock.schedule_once(lambda dt: self.connect_to_device(), 1)
+                else:
+                    print("Please enable location services manually.")
+                    self.get_main_screen().status_text = "Enable Location Services"
+            else:
+                print("Some permissions were denied")
+                self.get_main_screen().status_text = "Permission Denied"
+
+        request_permissions([
+            Permission.ACCESS_BACKGROUND_LOCATION,
+            Permission.ACCESS_FINE_LOCATION,
+            Permission.BLUETOOTH,
+            Permission.BLUETOOTH_ADMIN,
+        ], on_permissions_callback)
+
         return Builder.load_file("ui.kv")
 
-    # Establish a persistent BLE connection
-    async def connect_to_device(self):
+    def get_main_screen(self):
+        return self.root.get_screen("main")
+
+    def is_location_enabled(self):
         try:
-            self.ble_client = BleakClient(BLE_ADDRESS)
-            await self.ble_client.connect()
-            if self.ble_client.is_connected:
-                print(f"Connected to {BLE_ADDRESS}")
-            else:
-                print("Failed to connect to ESP32")
+            context = self.get_context()
+            location_manager = cast('android.location.LocationManager',
+                                    context.getSystemService(Context.LOCATION_SERVICE))
+            return (location_manager.isProviderEnabled(LocationManager.GPS_PROVIDER) or
+                    location_manager.isProviderEnabled(LocationManager.NETWORK_PROVIDER))
         except Exception as e:
-            print(f"An error occurred during connection: {e}")
+            print(f"Location check failed: {e}")
+            return False
 
-    # Disconnect the BLE client
-    async def disconnect_from_device(self):
-        if self.ble_client and self.ble_client.is_connected:
-            await self.ble_client.disconnect()
-            print(f"Disconnected from {BLE_ADDRESS}")
+    def check_permissions(self):
+        required = [
+            Permission.ACCESS_FINE_LOCATION,
+            Permission.BLUETOOTH,
+            Permission.BLUETOOTH_ADMIN,
+            Permission.ACCESS_BACKGROUND_LOCATION
+        ]
+        return all(check_permission(p) for p in required)
 
-    # Send a command (as string) over BLE to ESP32
-    async def send_command(self, command):
-        if self.ble_client and self.ble_client.is_connected:
-            try:
-                formatted_command = command.strip().encode()
-                print(f"Sending command: {formatted_command}")
-                await self.ble_client.write_gatt_char(CHAR_UUID, formatted_command)
-                print("Command sent successfully")
-            except Exception as e:
-                print(f"Error sending command: {e}")
-        else:
-            print("Not connected to ESP32. Cannot send command")
+    def check_connection(self, dt):
+        try:
+            context = self.get_context()
+            manager = cast('android.bluetooth.BluetoothManager',
+                        context.getSystemService(Context.BLUETOOTH_SERVICE))
+            device = self.ble_client.getDevice()
+            state = manager.getConnectionState(device, BluetoothProfile.GATT)
 
-    # Trigger send_command when button is pressed
-    def on_button_press(self, command, element_card):
-        if not isinstance(command, str):
-            print(f"Error: Command is not a string: {command}")
+            if state == BluetoothProfile.STATE_CONNECTED:
+                print("Python polling: device is connected.")
+                screen = self.get_main_screen()
+                screen.status_text = "Connected"
+                screen.is_connected = True
+
+                # Discover services if not already done
+                if not hasattr(self, '_services_discovered'):
+                    self.ble_client.discoverServices()
+                    self._services_discovered = True
+                    Clock.schedule_interval(self.poll_for_service, 1)
+                    
+                Clock.unschedule(self.check_connection)
+        except Exception as e:
+            print(f"Polling failed: {e}")
+
+    def poll_for_service(self, dt):
+        try:
+            service = self.ble_client.getService(UUID.fromString(SERVICE_UUID))
+            if service:
+                print("Service found!")
+                self.characteristic = service.getCharacteristic(UUID.fromString(CHAR_UUID))
+                
+                if self.characteristic:
+                    print("Characteristic set!")
+                    screen = self.get_main_screen()
+                    screen.status_text = "Ready"
+                    screen.is_connected = True
+                    Clock.unschedule(self.poll_for_service)
+                else:
+                    print("Characteristic not found - still polling...")
+            else:
+                print("Service not found - still polling...")
+        except Exception as e:
+            print(f"Service polling error: {e}")
+            # Continue polling unless we've tried too many times
+            if hasattr(self, '_poll_count'):
+                self._poll_count += 1
+                if self._poll_count > 10:  # Stop after 10 attempts
+                    Clock.unschedule(self.poll_for_service)
+                    self.get_main_screen().status_text = "Discovery Failed"
+            else:
+                self._poll_count = 1
+
+
+    def connect_to_device(self):
+        screen = self.get_main_screen()
+
+        if not self.check_permissions():
+            screen.status_text = "Missing Permissions"
             return
-        
-        # Get the selected color for this button (default to "blue" if none chosen)
-        selected_color = self.color_map.get(element_card.text, "blue")
 
-        # Send command and color together
-        full_command = f"{command} {selected_color}"
-        print(f"Final command to send: {full_command}")
+        if not self.is_location_enabled():
+            screen.status_text = "Location Off"
+            return
 
-        if self.loop:
-            asyncio.run_coroutine_threadsafe(self.send_command(full_command), self.loop)
+        try:
+            adapter = BluetoothAdapter.getDefaultAdapter()
+            if not adapter.isEnabled():
+                screen.status_text = "Bluetooth Off"
+                return
 
-   # Toggle card and send command when ElementCard is pressed 
+            device = adapter.getRemoteDevice(BLE_ADDRESS)
+            self.gatt_callback = MyGattCallback()  # This is your Java .jar class
+            self.ble_client = device.connectGatt(
+                self.get_context(),
+                False,
+                self.gatt_callback
+            )
+
+            screen.status_text = "Connecting..."
+
+            # Begin polling connection state
+            Clock.schedule_interval(self.check_connection, 1)
+
+        except Exception as e:
+            print(f"Connection failed: {e}")
+            screen.status_text = "Connection Failed"
+
+    def get_characteristic(self, dt):
+        try:
+            service = self.ble_client.getService(UUID.fromString(SERVICE_UUID))
+            if service is not None:
+                characteristic = service.getCharacteristic(UUID.fromString(CHAR_UUID))
+                if characteristic is not None:
+                    self.characteristic = characteristic
+                    print("Characteristic set!")
+                    self.get_main_screen().status_text = "Ready"
+                else:
+                    print("Characteristic not found.")
+                    self.get_main_screen().status_text = "No Characteristic"
+            else:
+                print("Service not found.")
+                self.get_main_screen().status_text = "No Service"
+        except Exception as e:
+            print(f"Error getting characteristic: {e}")
+            self.get_main_screen().status_text = "Service Discovery Failed"
+
+
+    def on_connection_state_change(self, gatt, status, new_state):
+        screen = self.get_main_screen()
+        if new_state == 2:
+            screen.is_connected = True
+            screen.status_text = "Connected"
+            gatt.discoverServices()
+        else:
+            screen.is_connected = False
+            screen.status_text = "Not Connected"
+
+    def on_services_discovered(self, gatt, status):
+        screen = self.get_main_screen()
+        if status == 0:
+            service = gatt.getService(UUID.fromString(SERVICE_UUID))
+            if service:
+                self.characteristic = service.getCharacteristic(UUID.fromString(CHAR_UUID))
+                if self.characteristic:
+                    screen.status_text = "Ready"
+                else:
+                    screen.status_text = "No Characteristic"
+            else:
+                screen.status_text = "No Service"
+        else:
+            screen.status_text = "Service Discovery Failed"
+
     def on_toggle_press(self, element_card):
         card_text = element_card.text.strip()
-        command = self.command_map.get(card_text, None)
+        command = self.command_map.get(card_text)
         if command is None:
             print(f"No command mapped for {card_text}")
             return
 
         if element_card.active:
-            # Toggled off
+            # Toggled Off
             print(f"OFF: {card_text}")
             element_card.active = False
             if self.current_element == element_card:
                 self.current_element = None
-            self.on_button_press("off", element_card)
+            self.send_command("off", element_card)
         else:
             # Toggled on
             print(f"ON: {card_text}\nCommand: {command}")
@@ -108,20 +258,32 @@ class DemoApp(MDApp):
                 self.current_element.active = False
             element_card.active = True
             self.current_element = element_card
-            self.on_button_press(command, element_card)
+            self.send_command(command, element_card)
 
-    # Show color selection dropdown menu
+    def send_command(self, command, element_card):
+        screen = self.get_main_screen()
+        if not screen.is_connected:
+            print("Not connected - command not sent")
+            return
+
+        selected_color = self.color_map.get(element_card.text, "blue")
+        full_command = f"{command} {selected_color}"
+
+        try:
+            self.characteristic.setValue(full_command.encode('utf-8'))
+            self.ble_client.writeCharacteristic(self.characteristic)
+            print(f"Sent: {full_command}")
+        except Exception as e:
+            print(f"Failed to send command: {e}")
+
+    # show color selection dropdown menu
     def show_color_menu(self, instance, card):
         colors = ["red", "blue", "green", "yellow", "white", "purple", "orange"]
-
-        menu_items = [
-            {
-                "viewclass": "OneLineListItem",
-                "text": color,
-                "on_release": lambda x=color: self.assign_color_to_card(card, x),
-            }
-            for color in colors
-        ]
+        menu_items = [{
+            "viewclass": "OneLineListItem",
+            "text": color,
+            "on_release": lambda x=color: self.assign_color_to_card(card, x),
+        } for color in colors]
 
         self.menu = MDDropdownMenu(
             caller=instance,
@@ -130,30 +292,22 @@ class DemoApp(MDApp):
         )
         self.menu.open()
 
-    # Assign selected color to the button (doesn't change UI, just stores the color)
+    # assign selected color to the button 
     def assign_color_to_card(self, card, color):
-        self.color_map[card.text] = color  # Store the selected color
-        print(f"Assigned color '{color}' to {card.text}")  # Debugging output
+        self.color_map[card.text] = color
+        print(f"Assigned color {color} to {card.text}")
+        if card.active:
+            command = self.command_map.get(card.text.strip())
+            if command:
+                self.send_command(command, card)
         self.menu.dismiss()
 
-    # Start the asyncio event loop in a separate thread
-    def start_event_loop(self):
-        self.loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(self.loop)
-        self.loop.run_forever()
+    def get_context(self):
+        return PythonActivity.mActivity.getApplicationContext()
 
-    # Start the event loop and connect/scan for devices when the app starts
-    def on_start(self):     
-        Thread(target=self.start_event_loop, daemon=True).start()
-
-        def connect_and_scan(dt):
-            if self.loop:
-                asyncio.run_coroutine_threadsafe(self.connect_to_device(), self.loop)
-        Clock.schedule_once(connect_and_scan, 1.5)
-
-    # Disconnect from the BLE device when the app stops
     def on_stop(self):
-        if self.loop:
-            asyncio.run_coroutine_threadsafe(self.disconnect_from_device(), self.loop)
+        if hasattr(self, 'ble_client') and self.ble_client:
+            self.ble_client.disconnect()
 
-DemoApp().run()
+if __name__ == '__main__':
+    DemoApp().run()
