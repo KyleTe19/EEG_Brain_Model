@@ -1,4 +1,5 @@
 # works on tablet. yay
+import time
 
 from kivymd.app import MDApp
 from kivy.lang import Builder
@@ -10,8 +11,8 @@ from android.permissions import request_permissions, Permission, check_permissio
 from jnius import autoclass, cast
 
 # BLE Constants
-# BLE_ADDRESS = "70:B8:F6:78:85:E2" # OLD 
-BLE_ADDRESS = "70:B8:F6:67:64:A6" # CURRENT
+BLE_ADDRESS = "70:B8:F6:78:85:E2"  # test microcontroller
+# BLE_ADDRESS = "70:B8:F6:67:64:A6" # actual microcontroller
 CHAR_UUID = "9b7a6e35-cb8d-473b-9346-15507d362aa3"
 SERVICE_UUID = "3322271E-756A-443D-8A9D-2F90C7A73BF5"
 
@@ -28,10 +29,10 @@ BluetoothManager = autoclass('android.bluetooth.BluetoothManager')
 BluetoothProfile = autoclass('android.bluetooth.BluetoothProfile')
 
 
-
 class MainScreen(Screen):
     is_connected = BooleanProperty(False)
     status_text = StringProperty("Disconnected")
+
 
 class DemoApp(MDApp):
     def __init__(self, **kwargs):
@@ -107,16 +108,16 @@ class DemoApp(MDApp):
 
     # update -- checks connectivity status 
     def check_connection(self, dt):
+        screen = self.get_main_screen()
         try:
             context = self.get_context()
             manager = cast('android.bluetooth.BluetoothManager',
-                        context.getSystemService(Context.BLUETOOTH_SERVICE))
+                           context.getSystemService(Context.BLUETOOTH_SERVICE))
             device = self.ble_client.getDevice()
             state = manager.getConnectionState(device, BluetoothProfile.GATT)
 
             if state == BluetoothProfile.STATE_CONNECTED:
                 print("Python polling: device is connected.")
-                screen = self.get_main_screen()
                 screen.status_text = "Connected"
                 screen.is_connected = True
 
@@ -125,8 +126,14 @@ class DemoApp(MDApp):
                     self.ble_client.discoverServices()
                     self._services_discovered = True
                     Clock.schedule_interval(self.poll_for_service, 1)
-                    
+
                 Clock.unschedule(self.check_connection)
+            else:
+                print("Python polling: Device is disconnected from the ESP32.")
+                screen.status_text = "Disconnected"
+                screen.is_connected = False
+                Clock.schedule_interval(self.connect_to_device(), 1)
+
         except Exception as e:
             print(f"Polling failed: {e}")
 
@@ -137,7 +144,7 @@ class DemoApp(MDApp):
             if service:
                 print("Service found!")
                 self.characteristic = service.getCharacteristic(UUID.fromString(CHAR_UUID))
-                
+
                 if self.characteristic:
                     print("Characteristic set!")
                     screen = self.get_main_screen()
@@ -158,7 +165,6 @@ class DemoApp(MDApp):
                     self.get_main_screen().status_text = "Discovery Failed"
             else:
                 self._poll_count = 1
-
 
     def connect_to_device(self):
         screen = self.get_main_screen()
@@ -214,8 +220,7 @@ class DemoApp(MDApp):
             print(f"Error getting characteristic: {e}")
             self.get_main_screen().status_text = "Service Discovery Failed"
 
-
-    # update -- i don't think this is being called either 
+    # update -- i don't think this is being called either
     def on_connection_state_change(self, gatt, status, new_state):
         screen = self.get_main_screen()
         if new_state == 2:
@@ -313,5 +318,8 @@ class DemoApp(MDApp):
         if hasattr(self, 'ble_client') and self.ble_client:
             self.ble_client.disconnect()
 
-if __name__ == '__main__':
-    DemoApp().run()
+
+if __name__ == '__main__':  # cant use a while loop since kivy takes over the event loop and that code will never run
+    app = DemoApp()
+    Clock.schedule_interval(lambda dt: app.check_connection(0), 5)  # Schedule the connection check
+    app.run()
