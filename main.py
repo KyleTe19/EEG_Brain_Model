@@ -1,5 +1,3 @@
-# works on tablet. yay
-
 from kivymd.app import MDApp
 from kivy.lang import Builder
 from kivy.clock import Clock
@@ -10,12 +8,11 @@ from android.permissions import request_permissions, Permission, check_permissio
 from jnius import autoclass, cast
 
 # BLE Constants
-# BLE_ADDRESS = "70:B8:F6:78:85:E2" # OLD 
-BLE_ADDRESS = "70:B8:F6:67:64:A6" # CURRENT
+BLE_ADDRESS = "70:B8:F6:67:64:A6" # MAC address of specific ESP32 being connected to. Change if switching microcontrollers
 CHAR_UUID = "9b7a6e35-cb8d-473b-9346-15507d362aa3"
 SERVICE_UUID = "3322271E-756A-443D-8A9D-2F90C7A73BF5"
 
-# Java Classes
+# Java Classes  
 BluetoothAdapter = autoclass('android.bluetooth.BluetoothAdapter')
 BluetoothDevice = autoclass('android.bluetooth.BluetoothDevice')
 BluetoothGatt = autoclass('android.bluetooth.BluetoothGatt')
@@ -42,16 +39,18 @@ class DemoApp(MDApp):
         self.menu = None
         self.color_map = {}
 
+        # Command map
+        # Structure: "Text Name (found in ui.kv)": "[command sent to ESP32]"
         self.command_map = {
-            "Antero-Posterior": "anteroposterior",
-            "Bipolar": "bipolar",
+            "Bipolar": "bipolar", 
             "Transverse": "transverse",
-            "Infant": "infant",
-            "Sphenoidal": "sphenoidal",
-            "Brain Death": "brain_death",
             "Hatband": "hatband",
-            "EEG Electrodes": "electrodes",
-            "TBD": "custom"
+            "Temporal": "temporal",
+            "Cz Referential": "cz_ref",
+            "Ear Referential": "ear_ref",
+            "Large Baby": "large",
+            "Small Baby": "small",
+            "ECI": "eci"
         }
 
     def build(self):
@@ -115,20 +114,53 @@ class DemoApp(MDApp):
             state = manager.getConnectionState(device, BluetoothProfile.GATT)
 
             if state == BluetoothProfile.STATE_CONNECTED:
-                print("Python polling: device is connected.")
+                print("Device connected.")
                 screen = self.get_main_screen()
                 screen.status_text = "Connected"
                 screen.is_connected = True
 
-                # Discover services if not already done
                 if not hasattr(self, '_services_discovered'):
                     self.ble_client.discoverServices()
                     self._services_discovered = True
                     Clock.schedule_interval(self.poll_for_service, 1)
-                    
+
+                # Stop polling for initial connection
                 Clock.unschedule(self.check_connection)
+
+                # Start monitoring connection health
+                Clock.schedule_interval(self.monitor_connection, 5)
+
         except Exception as e:
-            print(f"Polling failed: {e}")
+            print(f"Connection check failed: {e}")
+
+
+    def monitor_connection(self, dt):
+        try:
+            context = self.get_context()
+            manager = cast('android.bluetooth.BluetoothManager',
+                        context.getSystemService(Context.BLUETOOTH_SERVICE))
+            device = self.ble_client.getDevice()
+            state = manager.getConnectionState(device, BluetoothProfile.GATT)
+
+            if state != BluetoothProfile.STATE_CONNECTED:
+                print("Device disconnected!")
+
+                screen = self.get_main_screen()
+                screen.status_text = "Disconnected"
+                screen.is_connected = False
+
+                # Stop monitoring connection
+                Clock.unschedule(self.monitor_connection)
+
+                # Clear service discovery flag
+                if hasattr(self, '_services_discovered'):
+                    del self._services_discovered
+
+                # Try reconnecting after delay
+                Clock.schedule_once(lambda dt: self.connect_to_device(), 2)
+
+        except Exception as e:
+            print(f"Monitor connection check failed: {e}")
 
     # update -- checks status - looking for service UUID
     def poll_for_service(self, dt):
@@ -178,7 +210,18 @@ class DemoApp(MDApp):
                 return
 
             device = adapter.getRemoteDevice(BLE_ADDRESS)
-            self.gatt_callback = MyGattCallback()  # This is the Java .jar class
+
+            # 🚨 Disconnect previous GATT client if it exists
+            if self.ble_client is not None:
+                print("Closing old GATT connection before reconnecting...")
+                try:
+                    self.ble_client.disconnect()
+                    self.ble_client.close()
+                except Exception as e:
+                    print(f"Error closing GATT: {e}")
+                self.ble_client = None  # Clear the reference
+
+            self.gatt_callback = MyGattCallback()
             self.ble_client = device.connectGatt(
                 self.get_context(),
                 False,
@@ -186,13 +229,12 @@ class DemoApp(MDApp):
             )
 
             screen.status_text = "Connecting..."
-
-            # Begin polling connection state
             Clock.schedule_interval(self.check_connection, 1)
 
         except Exception as e:
             print(f"Connection failed: {e}")
             screen.status_text = "Connection Failed"
+
 
     # update -- checks for UUID characteristic -- mostly here for debugging - i don't think this is being called amymore
     def get_characteristic(self, dt):
