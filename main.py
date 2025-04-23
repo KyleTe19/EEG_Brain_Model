@@ -54,6 +54,8 @@ class DemoApp(MDApp):
         }
 
     def build(self):
+
+        # Requests permissions and checks their status
         def on_permissions_callback(permissions, grants):
 
             print("Permissions callback executed")
@@ -81,9 +83,11 @@ class DemoApp(MDApp):
 
         return Builder.load_file("ui.kv")
 
+    # Displays the app interface
     def get_main_screen(self):
         return self.root.get_screen("main")
 
+    # Ensures location is enabled
     def is_location_enabled(self):
         try:
             context = self.get_context()
@@ -95,6 +99,7 @@ class DemoApp(MDApp):
             print(f"Location check failed: {e}")
             return False
 
+    # Checks that all required permissions were granted
     def check_permissions(self):
         required = [
             Permission.ACCESS_FINE_LOCATION,
@@ -104,7 +109,7 @@ class DemoApp(MDApp):
         ]
         return all(check_permission(p) for p in required)
 
-    # update -- checks connectivity status 
+    # Checks connectivity status 
     def check_connection(self, dt):
         try:
             context = self.get_context()
@@ -127,13 +132,13 @@ class DemoApp(MDApp):
                 # Stop polling for initial connection
                 Clock.unschedule(self.check_connection)
 
-                # Start monitoring connection health
+                # Start monitoring for reconnection
                 Clock.schedule_interval(self.monitor_connection, 5)
 
         except Exception as e:
             print(f"Connection check failed: {e}")
 
-
+    # Allows for reconnection after a disconnection
     def monitor_connection(self, dt):
         try:
             context = self.get_context()
@@ -162,7 +167,7 @@ class DemoApp(MDApp):
         except Exception as e:
             print(f"Monitor connection check failed: {e}")
 
-    # update -- checks status - looking for service UUID
+    # Searches for service to connect to 
     def poll_for_service(self, dt):
         try:
             service = self.ble_client.getService(UUID.fromString(SERVICE_UUID))
@@ -182,16 +187,17 @@ class DemoApp(MDApp):
                 print("Service not found - still polling...")
         except Exception as e:
             print(f"Service polling error: {e}")
-            # Continue polling unless we've tried too many times
+
+            # Continue polling unless too many failed attempts
             if hasattr(self, '_poll_count'):
                 self._poll_count += 1
-                if self._poll_count > 10:  # Stop after 10 attempts
+                if self._poll_count > 10:  # Stops after 10 attempts
                     Clock.unschedule(self.poll_for_service)
                     self.get_main_screen().status_text = "Discovery Failed"
             else:
                 self._poll_count = 1
 
-
+    # Connects the app to the ESP32
     def connect_to_device(self):
         screen = self.get_main_screen()
 
@@ -211,7 +217,7 @@ class DemoApp(MDApp):
 
             device = adapter.getRemoteDevice(BLE_ADDRESS)
 
-            # 🚨 Disconnect previous GATT client if it exists
+            # Disconnect previous GATT client if it exists
             if self.ble_client is not None:
                 print("Closing old GATT connection before reconnecting...")
                 try:
@@ -235,54 +241,7 @@ class DemoApp(MDApp):
             print(f"Connection failed: {e}")
             screen.status_text = "Connection Failed"
 
-
-    # update -- checks for UUID characteristic -- mostly here for debugging - i don't think this is being called amymore
-    def get_characteristic(self, dt):
-        try:
-            service = self.ble_client.getService(UUID.fromString(SERVICE_UUID))
-            if service is not None:
-                characteristic = service.getCharacteristic(UUID.fromString(CHAR_UUID))
-                if characteristic is not None:
-                    self.characteristic = characteristic
-                    print("Characteristic set!")
-                    self.get_main_screen().status_text = "Ready"
-                else:
-                    print("Characteristic not found.")
-                    self.get_main_screen().status_text = "No Characteristic"
-            else:
-                print("Service not found.")
-                self.get_main_screen().status_text = "No Service"
-        except Exception as e:
-            print(f"Error getting characteristic: {e}")
-            self.get_main_screen().status_text = "Service Discovery Failed"
-
-
-    # update -- i don't think this is being called either 
-    def on_connection_state_change(self, gatt, status, new_state):
-        screen = self.get_main_screen()
-        if new_state == 2:
-            screen.is_connected = True
-            screen.status_text = "Connected"
-            gatt.discoverServices()
-        else:
-            screen.is_connected = False
-            screen.status_text = "Not Connected"
-
-    def on_services_discovered(self, gatt, status):
-        screen = self.get_main_screen()
-        if status == 0:
-            service = gatt.getService(UUID.fromString(SERVICE_UUID))
-            if service:
-                self.characteristic = service.getCharacteristic(UUID.fromString(CHAR_UUID))
-                if self.characteristic:
-                    screen.status_text = "Ready"
-                else:
-                    screen.status_text = "No Characteristic"
-            else:
-                screen.status_text = "No Service"
-        else:
-            screen.status_text = "Service Discovery Failed"
-
+    # Sends command and changes button color when pressed
     def on_toggle_press(self, element_card):
         card_text = element_card.text.strip()
         command = self.command_map.get(card_text)
@@ -306,6 +265,7 @@ class DemoApp(MDApp):
             self.current_element = element_card
             self.send_command(command, element_card)
 
+    # Function to send command
     def send_command(self, command, element_card):
         screen = self.get_main_screen()
         if not screen.is_connected:
@@ -322,7 +282,7 @@ class DemoApp(MDApp):
         except Exception as e:
             print(f"Failed to send command: {e}")
 
-    # show color selection dropdown menu
+    # Shows color selection from drop down
     def show_color_menu(self, instance, card):
         colors = ["red", "blue", "green", "yellow", "white", "purple", "orange"]
         menu_items = [{
@@ -338,7 +298,7 @@ class DemoApp(MDApp):
         )
         self.menu.open()
 
-    # assign selected color to the button 
+    # Assigns selected color to button
     def assign_color_to_card(self, card, color):
         self.color_map[card.text] = color
         print(f"Assigned color {color} to {card.text}")
