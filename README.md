@@ -1,6 +1,8 @@
 # EEG_Brain_Model
 2024/2025 Capstone project EEG Brain Model
 
+## About This Project
+- This project is used to run a physical brain model that hosts an ESP32 microcontroller along with an accompanying app.  
 
 ## Installation
 ``` pip install kivy```
