@@ -4,12 +4,6 @@ import struct
 from machine import Pin
 import neopixel
 import time
-# new button pins
-#Power switch pin: 36 -> changed to 11
-#Data pins: A0: 26, A1: 25, A2: 34, A3: 39, A4: 36, A5: 35
-
-# new button pins
-#Power switch pin: 36 -> changed to 11
 
 #D0:   GPIO21 pin0
 #D1:   GPIO22 pin1
@@ -18,8 +12,6 @@ import time
 #D4:   GPIO15 pin4
 #D5:   GPIO33 pin5
 
-# this pin causes a soft reset on the watchdog timer which then reboots the esp from firmware - we should change if we can
-# it does this because its connected to the SPI flash on the board
 ButtonPin = Pin(27, Pin.IN, Pin.PULL_DOWN)
 PowerRelayControl = Pin(12, Pin.OUT)
 
@@ -64,8 +56,6 @@ class BLEPeripheral:
         self.np1 = neopixel.NeoPixel(Pin(pin1), num_pixels)
         self.np2 = neopixel.NeoPixel(Pin(pin2), num_pixels)
         self.np3 = neopixel.NeoPixel(Pin(pin3), num_pixels)
-        #self.np4 = neopixel.NeoPixel(Pin(pin4), num_pixels)
-        #self.np5 = neopixel.NeoPixel(Pin(pin5), num_pixels)
         self.service_handle = None
         self.char_handle = None
         self.setup_services()
@@ -133,10 +123,10 @@ class BLEPeripheral:
     def bipolar(self, r, g, b):
 
 
-        #self.set_color(r, g, b, 2, self.np0, 192) # total
-        #self.set_color(75, 0, 0, 2, self.np1, 69) # total
-        #self.set_color(0, 75, 0, 2, self.np2, 79) # total
-        #self.set_color(0, 0, 75, 2, self.np3, 159) # total
+        #np0 = 192  total LEDs
+        #np1 = 69  total  LEDs
+        #np2 = 79  total  LEDs
+        #np3 = 159  total LEDs
         self.set_color(r, g, b, 1, self.np3, 48)
         self.set_color(r, g, b, 1, self.np3, 31)
         self.set_color(r, g, b, 1, self.np3, 11)
@@ -198,11 +188,8 @@ class BLEPeripheral:
     def hatband(self, r, g, b):
         self.set_color(r, g, b, 1, self.np3, 48)
         self.set_color(r, g, b, 1, self.np3, 31)
-        #self.set_color(r, g, b, 1, self.np3, 11)
-        #self.set_color(r, g, b, 1, self.np3, 70)
         self.set_color(r, g, b, 1, self.np3, 63)
         self.set_color(r, g, b, 1, self.np3, 76)
-        #self.set_color(r, g, b, 1, self.np3, 40)
         self.set_color(r, g, b, 3, self.np3, 84, 145) #
         self.set_color(r, g, b, 2, self.np0, 55) # bottom of the brain
 
@@ -213,7 +200,6 @@ class BLEPeripheral:
         self.np1.write()
         print("Hatband montage set to color:", (r, g, b))
 
-    #sphenoidal for now but actually temporal pole
     def temporal(self, r, g, b):
 
         # top of temporal pole
@@ -368,7 +354,7 @@ class BLEPeripheral:
 
         self.set_color(r, g, b, 3, self.np3, 23, 56)
         self.set_color(r, g, b, 3, self.np3, 84, 112) # right side of top
-        self.set_color(r, g, b, 3, self.np3, 116, 141)# left side of top
+        self.set_color(r, g, b, 3, self.np3, 116, 141) # left side of top
         self.set_color(r, g, b, 3, self.np1, 41, 69)
 
 
@@ -409,7 +395,6 @@ class BLEPeripheral:
         # Top
         self.set_color(r, g, b, 2, self.np3, 112)
         self.set_color(r, g, b, 3, self.np3, 116, 140)
-        #self.set_color(r, g, b, 0, self.np0, 43)
         self.set_color(r, g, b, 3, self.np1, 10, 20)
         self.set_color(r, g, b, 3, self.np1, 30, 41)
 
