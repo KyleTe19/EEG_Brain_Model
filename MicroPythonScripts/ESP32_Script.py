@@ -515,7 +515,7 @@ class BLEPeripheral:
 
 
 # Initialize the peripheral
-ble_peripheral = BLEPeripheral(1000, 21, 22, 14, 32, 15, 33)
+ble_peripheral = BLEPeripheral(525, 21, 22, 14, 32, 15, 33)
 
 ButtonPin.irq(trigger=Pin.IRQ_RISING | Pin.IRQ_FALLING, handler=SwitchHandler)
 
