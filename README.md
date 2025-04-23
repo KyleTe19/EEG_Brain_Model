@@ -25,4 +25,5 @@ Do not forget to run `buildozer android clean` before building if version was up
 
 ## Documentation
 - See documentation for kivymd at https://kivymd.readthedocs.io
-- See documentation for Java OpenJDK8 https://docs.datastax.com/en/jdk-install/doc/jdk-install/installOpenJdkDeb.html
+- See documentation for Java OpenJDK8 at https://docs.datastax.com/en/jdk-install/doc/jdk-install/installOpenJdkDeb.html
+- See documentation for Buildozer at https://buildozer.readthedocs.io/en/latest/quickstart.html
