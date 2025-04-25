@@ -22,7 +22,7 @@ ScreenManager:
                 MDLabel:
                     text: root.status_text
                     theme_text_color: "Custom"
-                    text_color: 1, 1, 1, 1
+                    text_color: 243/255, 243/255, 243/255, 1
                     bold: True
                     halign: "center"
                     valign: "center"
@@ -48,58 +48,68 @@ ScreenManager:
                     ElementCard:
                         text: "Bipolar"
                         image_source: "images/bipolar.png"
+                        dark_image_source: "images/bipolar_dark.png"
                         on_release: app.on_toggle_press(self)
 
                     ElementCard:
                         text: "Transverse"
                         image_source: "images/transverse.png"
+                        dark_image_source: "images/transverse_dark.png"
                         on_release: app.on_toggle_press(self)
 
                     ElementCard:
                         text: "Hatband"
                         image_source: "images/hatband.png"
+                        dark_image_source: "images/hatband_dark.png"
                         on_release: app.on_toggle_press(self)
                     
                     ElementCard:
                         text: "Temporal"
                         image_source: "images/temporal.png"
+                        dark_image_source: "images/temporal_dark.png"
                         on_release: app.on_toggle_press(self)
 
                     
                     ElementCard:
                         text: "Cz Referential"
                         image_source: "images/cz_ref.png"
+                        dark_image_source: "images/cz_ref_dark.png"
                         on_release: app.on_toggle_press(self)
 
                     ElementCard:
                         text: "Ear Referential"
                         image_source: "images/ear_ref.png"
+                        dark_image_source: "images/ear_ref_dark.png"
                         on_release: app.on_toggle_press(self)
 
                     ElementCard:
                         text: "Large Baby"
                         image_source: "images/large_baby.png"
+                        dark_image_source: "images/large_baby_dark.png"
                         on_release: app.on_toggle_press(self)
 
                     ElementCard:
                         text: "Small Baby"
                         image_source: "images/small_baby.png"
+                        dark_image_source: "images/small_baby_dark.png"
                         on_release: app.on_toggle_press(self)
 
                     ElementCard:
                         text: "ECI"
-                        image_source: "images/eci.png"
+                        image_source: "images/eci.png" 
+                        dark_image_source: "images/eci_dark.png"
                         on_release: app.on_toggle_press(self)
 
 <ElementCard@MDCard>:
     active: False
-    md_bg_color: (1, 1, 1, 1) if self.active else (46/255, 46/255, 46/255, 1)
+    md_bg_color: (243/255, 243/255, 243/255, 1) if self.active else (46/255, 46/255, 46/255, 1)
     padding: dp(15)
     spacing: dp(10)
     radius: dp(25)
     ripple_behavior: True
     text: ""
     image_source: ""
+    dark_image_source: "" # change
     pos_hint: {"center_x": 0.5}
     size_hint_x: 1
     size_hint_y: None
@@ -114,7 +124,7 @@ ScreenManager:
             id: label
             text: root.text
             theme_text_color: "Custom"
-            text_color: (0, 0, 0, 1) if root.active else (243/255, 243/255, 243/255, 1)
+            text_color: (46/255, 46/255, 46/255, 1) if root.active else (243/255, 243/255, 243/255, 1)
             font_style: "H6"
             halign: "left"
             valign: "center"
@@ -134,6 +144,6 @@ ScreenManager:
         MDIconButton:
             icon: "palette"
             theme_text_color: "Custom"
-            text_color: 1, 1, 1, 1  # RGBA format for white (1,1,1,1)
+            text_color:  (46/255, 46/255, 46/255, 1) if root.active else (243/255, 243/255, 243/255, 1)
             on_release: app.show_color_menu(self, root)
             

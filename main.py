@@ -1,3 +1,5 @@
+# change on_toggle and send_command
+
 from kivymd.app import MDApp
 from kivy.lang import Builder
 from kivy.clock import Clock
@@ -241,7 +243,7 @@ class DemoApp(MDApp):
             print(f"Connection failed: {e}")
             screen.status_text = "Connection Failed"
 
-    # Sends command and changes button color when pressed
+    # Toggle card and send command when ElementCard is pressed 
     def on_toggle_press(self, element_card):
         card_text = element_card.text.strip()
         command = self.command_map.get(card_text)
@@ -249,10 +251,18 @@ class DemoApp(MDApp):
             print(f"No command mapped for {card_text}")
             return
 
+        # Ensure original image is stored the first time (so we can toggle back to it)
+        if not hasattr(element_card, "original_image_source"):
+            element_card.original_image_source = element_card.image_source
+
         if element_card.active:
             # Toggled Off
             print(f"OFF: {card_text}")
             element_card.active = False
+
+            # Switch back to light image
+            element_card.image_source = element_card.original_image_source
+
             if self.current_element == element_card:
                 self.current_element = None
             self.send_command("off", element_card)
@@ -261,8 +271,18 @@ class DemoApp(MDApp):
             print(f"ON: {card_text}\nCommand: {command}")
             if self.current_element and self.current_element != element_card:
                 self.current_element.active = False
+
+                # Reset the image of the previous card
+                if hasattr(self.current_element, "original_image_source"):
+                    self.current_element.image_source = self.current_element.original_image_source
+
             element_card.active = True
             self.current_element = element_card
+
+            # Switch to dark image
+            if hasattr(element_card, "dark_image_source"):
+                element_card.image_source = element_card.dark_image_source
+
             self.send_command(command, element_card)
 
     # Function to send command
